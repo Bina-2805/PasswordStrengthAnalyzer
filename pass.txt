@@ -1,0 +1,201 @@
+import tkinter as tk
+from tkinter import ttk
+import re
+import math
+
+# ------------------ Load Leaked Passwords ------------------
+
+def load_leaked_passwords():
+    try:
+        with open("leaked_passwords.txt", "r") as file:
+            return set(line.strip().lower() for line in file)
+    except FileNotFoundError:
+        return set()
+
+LEAKED_PASSWORDS = load_leaked_passwords()
+
+
+# ------------------ Entropy Calculation ------------------
+
+def calculate_entropy(password):
+    charset = 0
+
+    if re.search(r"[a-z]", password):
+        charset += 26
+
+    if re.search(r"[A-Z]", password):
+        charset += 26
+
+    if re.search(r"[0-9]", password):
+        charset += 10
+
+    if re.search(r"[^A-Za-z0-9]", password):
+        charset += 32
+
+    if charset == 0:
+        return 0
+
+    entropy = len(password) * math.log2(charset)
+
+    return round(entropy, 2)
+
+
+# ------------------ Password Analysis ------------------
+
+def analyze_password(password):
+
+    score = 0
+    suggestions = []
+
+    # Length
+    if len(password) >= 12:
+        score += 20
+    else:
+        suggestions.append("Use at least 12 characters.")
+
+    # Uppercase
+    if re.search(r"[A-Z]", password):
+        score += 10
+    else:
+        suggestions.append("Add uppercase letters.")
+
+    # Lowercase
+    if re.search(r"[a-z]", password):
+        score += 10
+    else:
+        suggestions.append("Add lowercase letters.")
+
+    # Numbers
+    if re.search(r"[0-9]", password):
+        score += 10
+    else:
+        suggestions.append("Include numbers.")
+
+    # Special Characters
+    if re.search(r"[^A-Za-z0-9]", password):
+        score += 15
+    else:
+        suggestions.append("Use special characters.")
+
+    # Common Password
+    if password.lower() in LEAKED_PASSWORDS:
+        suggestions.append("Password found in leaked password database.")
+    else:
+        score += 15
+
+    # Weak Patterns
+    weak_patterns = [
+        "123",
+        "password",
+        "admin",
+        "qwerty",
+        "abc",
+        "111",
+        "000"
+    ]
+
+    if any(p in password.lower() for p in weak_patterns):
+        suggestions.append("Avoid predictable patterns.")
+    else:
+        score += 10
+
+    # Entropy
+    entropy = calculate_entropy(password)
+
+    if entropy >= 60:
+        score += 10
+
+    # Strength
+    if score <= 20:
+        strength = "Very Weak"
+        color = "#ff0000"
+
+    elif score <= 40:
+        strength = "Weak"
+        color = "#ff6600"
+
+    elif score <= 60:
+        strength = "Moderate"
+        color = "#d4a017"
+
+    elif score <= 80:
+        strength = "Strong"
+        color = "#008000"
+
+    else:
+        strength = "Very Strong"
+        color = "#006400"
+
+    return score, entropy, strength, color, suggestions
+
+
+# ------------------ Button Functions ------------------
+
+def check_password():
+
+    password = password_entry.get()
+
+    score, entropy, strength, color, suggestions = analyze_password(password)
+
+    progress["value"] = score
+
+    strength_label.config(
+        text=f"Strength : {strength}",
+        fg=color
+    )
+
+    score_label.config(
+        text=f"Score : {score}/100"
+    )
+
+    entropy_label.config(
+        text=f"Entropy : {entropy} bits"
+    )
+
+    length_label.config(
+        text=f"Length : {len(password)} characters"
+    )
+
+    suggestion_box.delete("1.0", tk.END)
+
+    if suggestions:
+        for item in suggestions:
+            suggestion_box.insert(tk.END, "• " + item + "\n")
+    else:
+        suggestion_box.insert(
+            tk.END,
+            "Excellent Password!\nNo improvements required."
+        )
+
+
+def clear_all():
+
+    password_entry.delete(0, tk.END)
+
+    progress["value"] = 0
+
+    strength_label.config(
+        text="Strength :"
+    )
+
+    score_label.config(
+        text="Score :"
+    )
+
+    entropy_label.config(
+        text="Entropy :"
+    )
+
+    length_label.config(
+        text="Length :"
+    )
+
+    suggestion_box.delete("1.0", tk.END)
+
+
+def toggle_password():
+
+    if show_password.get():
+        password_entry.config(show="")
+    else:
+        password_entry.config(show="*")
